@@ -556,19 +556,19 @@ Recommended Expected Result patterns:
 | Title assertion | `Title contains "Dashboard"` |
 | Input value | `"E-mail" input value is "test@email.com"` |
 | Image/logo visible | `"Company Logo" image is visible` |
-| Table required columns populated | `Tablodaki her satırda "TailNumber", "Flight Number", "Departure" ve "Destination" kolonları dolu olmalıdır.` |
-| Table column contains value | `Tablodaki "Start Date" kolonunun tüm hücreleri "Today" değerini içermelidir.` |
+| Table required columns populated | `In every row of the table, the "TailNumber", "Flight Number", "Departure", and "Destination" columns must be populated.` |
+| Table column contains value | `All cells in the "Start Date" column must contain "Today".` |
 
 The table population assertion dynamically selects the first visible ARIA grid, ARIA
 table, or HTML table and logs which table was selected. It checks the current page and
 continues through visible, enabled next-page controls when pagination is available. No
 application-specific table or pagination locator is required. The English form is:
 `In every row of the table, the "TailNumber", "Flight Number", "Departure", and "Destination" columns must be populated.`
-Empty text, `-`, `–`, `—`, `N/A`, `NA`, `null`, and `none` are treated as empty values.
+Empty text, `-`, `--`, `N/A`, `NA`, `null`, and `none` are treated as empty values.
 
 The table column value assertion checks the selected column on every pagination page:
-`All cells in the "Start Date" column must contain "Today".` Dynamic values such as
-`Today`, `Bugün`, and `Bugun` use the execution date in `dd.MM.yyyy` format.
+`All cells in the "Start Date" column must contain "Today".` The dynamic value
+`Today` uses the execution date in `dd.MM.yyyy` format.
 
 Input examples:
 

@@ -1,0 +1,1 @@
+"""Static automation toolbox definitions."""

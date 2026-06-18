@@ -1,0 +1,35 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+
+# Logs / runtime artifacts
+logs/
+*.log
+automation.log
+*suggestions.json
+
+
+# Tooling / local state
+.playwright-mcp/
+
+
+# profiles
+Static_Aut/profiles/definitions

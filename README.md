@@ -6,7 +6,49 @@ The current project scope is web automation only.
 
 ## Architecture
 
-![Web Xray Hybrid Automation Flow](flow-diagram.svg)
+```mermaid
+flowchart TD
+    A[Xray Test or Test Execution] --> B[Read Xray data]
+    B --> C[Normalize scenario steps]
+    C --> D[Analyze static toolbox coverage]
+    D --> E{STATIC_TOOLBOX_MODE}
+
+    E -->|shadow| F[Log static coverage only]
+    E -->|off| G[Run full scenario with Playwright MCP]
+    E -->|on| H[Run deterministic static Playwright tools]
+
+    H --> I{Static result}
+    I -->|passed| J[Write execution report]
+    I -->|unsupported step| K[LLM routes step to existing static tool]
+    I -->|locator failure| L[MCP locator discovery]
+    I -->|failed| M[Create bug candidate]
+
+    K --> N{Route accepted?}
+    N -->|yes| H
+    N -->|no| O[Generate tool suggestion JSON]
+    O --> J
+
+    L --> P[Save healed selector]
+    P --> Q[Retry static toolbox]
+    Q --> R{Retry result}
+    R -->|passed| J
+    R -->|failed| M
+
+    G --> S{MCP result}
+    S -->|passed| J
+    S -->|failed| M
+
+    M --> T{BUG_CREATION_MODE}
+    T -->|review| U[Open local bug review UI]
+    T -->|auto| V[Create Jira bug]
+    T -->|off| W[Skip bug creation]
+
+    U --> X[User approves selected candidates]
+    X --> V
+    V --> J
+    W --> J
+    F --> J
+```
 
 ```text
 Xray Test or Test Execution
@@ -51,9 +93,23 @@ Core principles:
 
 ## Setup
 
-Windows PowerShell:
+### Prerequisites
+
+Install these tools before running the project:
+
+- Python 3.11 or newer
+- Git
+- A Jira/Xray instance or Xray Cloud credentials
+- An OpenAI or Google API key, depending on the selected `LLM_MODEL_NAME`
+
+The project is designed to run from a local virtual environment. Do not install the dependencies globally unless you intentionally manage Python that way.
+
+### Windows PowerShell
+
+From the repository root:
 
 ```powershell
+cd C:\path\to\ai-agent-hybrid-architecture
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -61,9 +117,19 @@ python -m pip install -r requirements_win_os.txt
 python -m playwright install chromium
 ```
 
-macOS:
+If PowerShell blocks virtual environment activation, run this once for the current terminal session and activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### macOS
+
+From the repository root:
 
 ```zsh
+cd /path/to/ai-agent-hybrid-architecture
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -71,7 +137,58 @@ python -m pip install -r requirements_macos.txt
 python -m playwright install chromium
 ```
 
-Then create `.env` from `.env.example`.
+### Configure Environment Variables
+
+Create your local `.env` file from the example file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+On macOS/Linux:
+
+```zsh
+cp .env.example .env
+```
+
+Then open `.env` and fill in the values for your Jira/Xray and LLM provider. Keep `.env` local only; it is intentionally ignored by Git.
+
+For a first local run, these are the main values to review:
+
+```text
+OPENAI_API_KEY=
+GOOGLE_API_KEY=
+LLM_MODEL_NAME=
+XRAY_DEPLOYMENT=
+JIRA_DATACENTER_URL=
+JIRA_DATACENTER_API_TOKEN=
+JIRA_CLOUD_URL=
+JIRA_CLOUD_EMAIL=
+JIRA_CLOUD_API_TOKEN=
+XRAY_CLOUD_CLIENT_ID=
+XRAY_CLOUD_CLIENT_SECRET=
+BUG_PROJECT_KEY=
+BUG_ISSUE_TYPE_ID=
+STATIC_TOOLBOX_MODE=on
+```
+
+Use `XRAY_DEPLOYMENT=datacenter` for Jira/Xray Data Center and `XRAY_DEPLOYMENT=cloud` for Jira/Xray Cloud.
+
+### Start The GUI
+
+After the virtual environment is active and `.env` is configured, start the desktop runner:
+
+```powershell
+python GUI/gui_runner.py
+```
+
+On macOS/Linux, use the same command after activating `.venv`:
+
+```zsh
+python GUI/gui_runner.py
+```
+
+The GUI lets you configure the run type, Xray keys, Jira/Xray connection mode, LLM model, static toolbox mode, and bug creation mode from one screen.
 
 ## Environment Variables
 
@@ -139,47 +256,69 @@ STATIC_TOOLBOX_MODE=on
 
 ## Running
 
-Run a single Xray Test issue:
+### Recommended: Run From The GUI
+
+Start the GUI from the repository root with the virtual environment active:
 
 ```powershell
-python Web_Aut/playwright_xray.py --test-key PROJ-345
-```
-
-Direct single-test runs write a one-test HTML report and JSON sidecar under:
-
-```text
-logs/execution_reports/
-```
-
-Run all tests inside an Xray Test Execution:
-
-```powershell
-python Web_Aut/playwright_xray_execution.py --execution-key PROJ-333 --execution_mode web
-```
-
-Each Test Execution run writes one HTML report for all tests in that execution under:
-
-```text
-logs/execution_reports/
-```
-
-The report shows each test result, unsupported action or Expected Result gaps, whether a tool suggestion file was generated, whether MCP locator healing started, and whether a Jira bug was created. A JSON sidecar with the same structured data is written next to the HTML file.
-
-Use the CLI runner:
-
-```powershell
-python Web_Aut/playwright_xray_runner.py
-```
-
-Use the GUI runner:
-
-```powershell
+.\.venv\Scripts\Activate.ps1
 python GUI/gui_runner.py
 ```
 
-The GUI supports both `Test Execution` and `Single Test` run types.
+The GUI supports two run types:
 
-When `BUG_CREATION_MODE=review`, any unresolved bug candidate opens an interactive local review page automatically after the run finishes. Select the candidates you want and use `Create selected bugs` from that browser page.
+- `Test Execution`: runs every test inside an Xray Test Execution.
+- `Single Test`: runs one Xray Test issue directly.
+
+Typical GUI flow:
+
+1. Select the Xray deployment type: `Data Center` or `Cloud`.
+2. Fill in the Xray Test Execution key or Single Test key.
+3. Choose the LLM model or keep the `.env` default.
+4. Select `STATIC_TOOLBOX_MODE`.
+5. Select the bug creation mode: `review`, `auto`, or `off`.
+6. Start the run.
+
+For regular usage, this is the recommended configuration:
+
+```text
+STATIC_TOOLBOX_MODE=on
+BUG_CREATION_MODE=review
+BUG_REVIEW_UI_AUTO_OPEN=true
+```
+
+When `BUG_CREATION_MODE=review`, unresolved failures are queued as bug candidates. After the run finishes, the local review page opens automatically if candidates exist. Select the candidates you want and use `Create selected bugs` from that browser page.
+
+### Run A Single Xray Test From CLI
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python Web_Aut/playwright_xray.py --test-key PROJ-345
+```
+
+### Run An Xray Test Execution From CLI
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python Web_Aut/playwright_xray_execution.py --execution-key PROJ-333 --execution_mode web
+```
+
+### Use The CLI Prompt Runner
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python Web_Aut/playwright_xray_runner.py
+```
+
+### Reports And Logs
+
+Execution reports are written under:
+
+```text
+logs/execution_reports/
+```
+
+Each run writes an HTML report and a JSON sidecar with structured execution data. The report shows each test result, unsupported action or Expected Result gaps, whether a tool suggestion file was generated, whether MCP locator healing started, and whether a Jira bug was created.
 
 Expected log shape for a successful static run:
 
